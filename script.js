@@ -4,7 +4,7 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 ctx.fillStyle = "white";
-ctx.font = "40px Helvetiva";
+ctx.font = "40px Bangers";
 ctx.textAlign = "center";
 ctx.textBaseline = "middle";
 ctx.lineWidth = 3;
@@ -54,7 +54,7 @@ class Player {
     ctx.restore();
     if (this.game.debug) ctx.stroke();
   }
-  update(deltaTime) {
+  update() {
     if (this.y <= this.game.height * 0.4) this.y = this.game.height * 0.4;
     this.dx = this.game.mouse.x - this.x;
     this.dy = this.game.mouse.y - this.y;
@@ -96,6 +96,10 @@ class Player {
     else if (angle < 1.96) this.frameY = 4;
     else if (angle < 2.74) this.frameY = 5;
   }
+  restart() {
+    this.x = this.game.width * 0.5;
+    this.y = this.game.height * 0.5;
+  }
 }
 class Enemy {
   constructor(game) {
@@ -104,12 +108,6 @@ class Enemy {
     this.x = this.game.width - this.radius;
     this.y = Math.random() * this.game.height * 0.68 + this.game.height * 0.3;
     this.speed = Math.random() * 3 + 1;
-    this.img = new Image();
-    this.img.src = "./img/toadskin.png";
-    this.spriteWidth = 154;
-    this.spriteHeight = 238;
-    this.width = this.spriteWidth;
-    this.height = this.spriteHeight;
     this.frameX = 0;
     this.frameY = Math.floor(Math.random() * 3);
     this.maxFrame = 39;
@@ -141,7 +139,7 @@ class Enemy {
 
   update() {
     this.x -= this.speed;
-    if (this.x + this.width <= 0) {
+    if (this.x + this.width <= 0 && !this.game.gameOver) {
       this.x = this.game.width + this.radius;
       this.frameY = Math.floor(Math.random() * 3);
       this.y = Math.random() * this.game.height * 0.68 + this.game.height * 0.3;
@@ -167,10 +165,34 @@ class Enemy {
   }
 }
 
+class Toadskin extends Enemy {
+  constructor(game) {
+    super(game);
+    this.img = new Image();
+    this.img.src = "./img/toadskin.png";
+    this.spriteWidth = 154;
+    this.spriteHeight = 238;
+    this.width = this.spriteWidth;
+    this.height = this.spriteHeight;
+  }
+}
+
+class Barkskin extends Enemy {
+  constructor(game) {
+    super(game);
+    this.img = new Image();
+    this.img.src = "./img/barkskin.png";
+    this.spriteWidth = 183;
+    this.spriteHeight = 280;
+    this.width = this.spriteWidth;
+    this.height = this.spriteHeight;
+  }
+}
+
 class Egg {
   constructor(game) {
     this.game = game;
-    this.radius = 30;
+    this.radius = 26;
     this.img = new Image();
     this.img.src = "./img/egg.png";
     this.spriteWidth = 110;
@@ -192,15 +214,15 @@ class Egg {
       this.width,
       this.height,
       this.x - this.width * 0.5 + 20,
-      this.y - this.height * 0.5 + 20,
+      this.y - this.height * 0.5 + 10,
       this.width * 0.6,
       this.height * 0.6
     );
 
     ctx.beginPath();
     ctx.save();
-    ctx.strokeStyle = "red";
-    ctx.fillStyle = "red";
+    ctx.strokeStyle = "darkgreen";
+    ctx.fillStyle = "darkgreen";
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.globalAlpha = 0.5;
     if (this.game.debug) ctx.fill();
@@ -287,7 +309,7 @@ class Larva {
     if (this.y <= this.game.height * 0.3) {
       this.markedForDeletion = true;
       this.game.removeGameObject();
-      this.game.score++;
+      if (!this.game.gameOver) this.game.score++;
       for (let i = 0; i < 10; i++) {
         this.game.particles.push(
           new Firefly(this.game, this.x, this.y, "yellow")
@@ -409,13 +431,13 @@ class Firefly extends Particle {
 class Spark extends Particle {
   update() {
     this.angle += this.va * 0.5;
-    this.x -= Math.cos(this.angle) * this.speedX ;
+    this.x -= Math.cos(this.angle) * this.speedX;
     this.y -= Math.sin(this.angle) * this.speedY;
     if (this.radius > 0.1) this.radius -= 0.06;
-    if (this.radius < 0.2){
-       this.markedForDeletion = true;
-       this.game.removeGameObject();
-      }
+    if (this.radius < 0.2) {
+      this.markedForDeletion = true;
+      this.game.removeGameObject();
+    }
   }
 }
 
@@ -433,12 +455,14 @@ class Game {
     this.enemies = [];
     this.hatchlings = [];
     this.particles = [];
-    this.numberOfenemies = 30;
+    this.numberOfenemies = 3;
     this.bg = new Image();
     this.bg.src = "./img/background.png";
     this.fg = new Image();
     this.fg.src = "./img/overlay.png";
     this.score = 0;
+    this.winnigScore = 40;
+    this.gameOver = false;
     this.lostHatchlings = 0;
     this.mouse = {
       x: this.width * 0.5,
@@ -453,23 +477,30 @@ class Game {
     this.eggInterval = 1500;
 
     window.addEventListener("mousedown", (e) => {
-      this.mouse.x = e.offsetX;
-      this.mouse.y = e.offsetY;
-      this.mouse.pressed = true;
-    });
-    window.addEventListener("mouseup", (e) => {
-      this.mouse.x = e.offsetX;
-      this.mouse.y = e.offsetY;
-      this.mouse.pressed = false;
-    });
-    window.addEventListener("mousemove", (e) => {
-      if (this.mouse.pressed) {
+      if (!this.gameOver) {
         this.mouse.x = e.offsetX;
         this.mouse.y = e.offsetY;
+        this.mouse.pressed = true;
+      }
+    });
+    window.addEventListener("mouseup", (e) => {
+      if (!this.gameOver) {
+        this.mouse.x = e.offsetX;
+        this.mouse.y = e.offsetY;
+        this.mouse.pressed = false;
+      }
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!this.gameOver) {
+        if (this.mouse.pressed) {
+          this.mouse.x = e.offsetX;
+          this.mouse.y = e.offsetY;
+        }
       }
     });
     window.addEventListener("keydown", (e) => {
       if (e.key === "d") this.debug = !this.debug;
+      if (e.key === "r" && this.gameOver) this.restart();
     });
   }
   draw(ctx, deltaTime) {
@@ -499,7 +530,11 @@ class Game {
     }
     this.timer += deltaTime;
 
-    if (this.eggTimer > this.eggInterval && this.eggs.length < this.maxEggs) {
+    if (
+      this.eggTimer > this.eggInterval &&
+      this.eggs.length < this.maxEggs &&
+      !this.gameOver
+    ) {
       this.addEgg();
       this.eggTimer = 0;
     } else {
@@ -508,8 +543,60 @@ class Game {
     ctx.save();
     ctx.textAlign = "left";
     ctx.fillText(`Score: ${this.score}`, 25, 50);
-    if (this.debug) ctx.fillText(`Lost: ${this.lostHatchlings}`, 25, 80);
+    if (this.debug)
+      ctx.fillText(`Lost: ${this.lostHatchlings} hatchilings`, 25, 80);
     ctx.restore();
+
+    if (this.score >= this.winnigScore) {
+      this.gameOver = true;
+      ctx.save();
+      ctx.fillStyle = `rgba(0,0,0,0.5)`;
+      ctx.fillRect(0, 0, this.width, this.height);
+      ctx.fillStyle = "white";
+      ctx.textAlign = "center";
+      ctx.shadowOffsetX = 6;
+      ctx.shadowOffsetY = 6;
+      ctx.shadowColor = "black";
+      let message1;
+      let message2;
+      if (this.lostHatchlings <= 12) {
+        message1 = "Great!";
+        message2 = "You've won!!";
+      } else {
+        message1 = "Sorry!";
+        message2 = `You've lost ${this.lostHatchlings}!! `;
+      }
+      ctx.font = "130px Bangers";
+      ctx.fillText(message1, this.width * 0.5, this.height * 0.5 - 20);
+      ctx.font = "60px Bangers";
+      ctx.fillText(message2, this.width * 0.5, this.height * 0.6);
+      ctx.font = "30px Bangers";
+      ctx.fillStyle = "red";
+      ctx.fillText(
+        `Final Score: ${this.score}. Press R to restart.`,
+        this.width * 0.5,
+        this.height * 0.7 + 10
+      );
+      ctx.restore();
+    }
+
+    if (this.lostHatchlings >= 15) {
+      ctx.save();
+      message1 = "Sorry!";
+      message2 = `You've lost ${this.lostHatchlings}!! `;
+      ctx.font = "130px Bangers";
+      ctx.fillText(message1, this.width * 0.5, this.height * 0.5 - 20);
+      ctx.font = "60px Bangers";
+      ctx.fillText(message2, this.width * 0.5, this.height * 0.6);
+      ctx.font = "30px Bangers";
+      ctx.fillStyle = "red";
+      ctx.fillText(
+        `Final Score: ${this.score}. Press R to restart.`,
+        this.width * 0.5,
+        this.height * 0.7 + 10
+      );
+      ctx.restore();
+    }
   }
   checkCollision(a, b) {
     const dx = a.x - b.x;
@@ -520,7 +607,10 @@ class Game {
   }
 
   addEnemy() {
-    this.enemies.push(new Enemy(this));
+    let ramdomize = Math.random();
+    ramdomize <= 0.5
+      ? this.enemies.push(new Toadskin(this))
+      : this.enemies.push(new Barkskin(this));
   }
   addEgg() {
     this.eggs.push(new Egg(this));
@@ -533,6 +623,23 @@ class Game {
     this.particles = this.particles.filter(
       (particle) => !particle.markedForDeletion
     );
+  }
+  restart() {
+    this.player.restart();
+    this.obstacles = [];
+    this.eggs = [];
+    this.enemies = [];
+    this.hatchlings = [];
+    this.particles = [];
+    this.init();
+    this.mouse = {
+      x: this.width * 0.5,
+      y: this.height * 0.5,
+      pressed: false,
+    };
+    this.score = 0;
+    this.lostHatchlings = 0;
+    this.gameOver = false;
   }
 
   init() {

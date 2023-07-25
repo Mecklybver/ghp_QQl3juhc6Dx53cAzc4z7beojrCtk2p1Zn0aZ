@@ -30,6 +30,10 @@ class Player {
     this.dx = 0;
     this.dy = 0;
     this.speedModifier = 5;
+
+    
+
+    
   }
   draw(ctx) {
     ctx.drawImage(
@@ -138,6 +142,9 @@ class Enemy {
   }
 
   update() {
+    if (this.y <= this.game.height * 0.4) this.y = this.game.height * 0.4;
+
+
     this.x -= this.speed;
     if (this.x + this.width <= 0 && !this.game.gameOver) {
       this.x = this.game.width + this.radius;
@@ -192,7 +199,7 @@ class Barkskin extends Enemy {
 class Egg {
   constructor(game) {
     this.game = game;
-    this.radius = 26;
+    this.radius = 23;
     this.img = new Image();
     this.img.src = "./img/egg.png";
     this.spriteWidth = 110;
@@ -201,8 +208,8 @@ class Egg {
     this.height = this.spriteHeight;
     this.x = Math.random() * this.game.width * 0.975 + this.game.width * 0.015;
     this.y = Math.random() * this.game.height * 0.6 + this.game.height * 0.35;
-    this.hatchTimer = 0;
-    this.hatchInterval = 5000;
+    this.hatchTimer = 5000;
+    this.hatchInterval = 10;
     this.markedForDeletion = false;
   }
 
@@ -227,11 +234,22 @@ class Egg {
     ctx.globalAlpha = 0.5;
     if (this.game.debug) ctx.fill();
     ctx.restore();
+    ctx.save();
     if (this.game.debug) ctx.stroke();
     const displayTime = (this.hatchTimer * 0.001).toFixed(0);
-    ctx.fillText(displayTime, this.x, this.y - this.radius * 2.3);
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 3;
+    ctx.shadowColor = "black";
+    ctx.fillStyle = "yellow";
+    ctx.font = "40px Bangers";
+    ctx.fillText(displayTime, this.x, this.y - this.radius * 3);
+    ctx.restore();
   }
   update(deltaTime) {
+    if (this.y <= this.game.height * 0.4) this.y = this.game.height * 0.4;
+
+
+
     let collisionObjects = [
       this.game.player,
       ...this.game.obstacles,
@@ -251,13 +269,13 @@ class Egg {
       }
     });
 
-    if (this.hatchTimer > this.hatchInterval) {
-      this.hacthTimer = 0;
+    if (this.hatchTimer < this.hatchInterval) {
+      this.hacthTimer = this.hatchTimer;
       this.markedForDeletion = true;
       this.game.removeGameObject();
       this.game.hatchlings.push(new Larva(this.game, this.x, this.y));
     } else {
-      this.hatchTimer += deltaTime;
+      this.hatchTimer -= deltaTime;
     }
   }
 }
@@ -501,6 +519,13 @@ class Game {
     window.addEventListener("keydown", (e) => {
       if (e.key === "d") this.debug = !this.debug;
       if (e.key === "r" && this.gameOver) this.restart();
+      if (e.key === "f" ) this.toggleFullScreen();
+    });
+    window.addEventListener("resize", () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      game.width = canvas.width;
+      game.height = canvas.height;
     });
   }
   draw(ctx, deltaTime) {
@@ -542,6 +567,8 @@ class Game {
     }
     ctx.save();
     ctx.textAlign = "left";
+    ctx.font = "40px Bangers"
+    ctx.fillStyle = `rgba(255,255,255,0.8)`;
     ctx.fillText(`Score: ${this.score}`, 25, 50);
     if (this.debug)
       ctx.fillText(`Lost: ${this.lostHatchlings} hatchilings`, 25, 80);
@@ -640,6 +667,14 @@ class Game {
     this.score = 0;
     this.lostHatchlings = 0;
     this.gameOver = false;
+  }
+  toggleFullScreen(){
+    if (!document.fullscreenElement){
+      document.documentElement.requestFullscreen();
+    } else if (document.exitFullscreen){
+      document.exitFullscreen();
+
+    }
   }
 
   init() {
